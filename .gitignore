@@ -1,0 +1,14 @@
+.env
+.env.local
+.env.*.local
+credentials.json
+token.json
+.supabase_db_password
+*.pem
+*.key
+.tmp/*
+!.tmp/.gitkeep
+__pycache__/
+*.pyc
+.venv/
+.DS_Store

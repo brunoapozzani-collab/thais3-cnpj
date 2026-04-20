@@ -1,0 +1,4 @@
+project_id = "antgruwugsizmtcfjglo"
+
+[functions.debora]
+verify_jwt = false

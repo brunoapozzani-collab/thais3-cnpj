@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Mascote TED — Demonstração</title>
+  <link rel="stylesheet" href="./mascot.css" />
+  <style>
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="demo-layout">
+    <div class="demo-mascot-pane" id="mascot"></div>
+
+    <div class="demo-app-pane">
+      <h1>Seu aplicativo vai aqui</h1>
+      <p>
+        Este é o espaço onde a funcionalidade real de qualquer URL que você
+        construir vai ficar. O mascote à esquerda é a mesma raposa embutida
+        em cada URL da empresa — colaboradores e clientes podem cutucá-lo,
+        fazer cócegas e se divertir enquanto trabalham.
+      </p>
+      <p>
+        Experimente tocar em diferentes partes do personagem: o rosto, a
+        barriga, os pés. Ou use os botões abaixo para acionar reações
+        específicas.
+      </p>
+
+      <h3>Acionar reações</h3>
+      <div class="demo-buttons">
+        <button data-pose="wave">Acenar</button>
+        <button data-pose="laugh">Rir</button>
+        <button data-pose="poke_reaction">Surpresa</button>
+        <button data-pose="tickle_belly">Cócegas na barriga</button>
+        <button data-pose="tickle_feet">Cócegas nos pés</button>
+        <button data-pose="angry">Bravo</button>
+        <button data-pose="happy">Feliz</button>
+        <button data-pose="sad">Triste</button>
+        <button data-pose="sleepy">Sonolento</button>
+        <button data-pose="pointing_right">Apontar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./mascot.js"></script>
+  <script>
+    const mascot = new Mascot(document.getElementById("mascot"), {
+      videosUrl: "../assets/videos/",
+    });
+
+    document.querySelectorAll(".demo-buttons button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        mascot.react(btn.dataset.pose);
+      });
+    });
+  </script>
+</body>
+</html>

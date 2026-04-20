@@ -1,0 +1,3 @@
+replicate
+Pillow
+python-dotenv

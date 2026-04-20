@@ -1,0 +1,205 @@
+@import url("https://fonts.googleapis.com/css2?family=Pacifico&display=swap");
+
+:root {
+  --mascot-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --mascot-glow: radial-gradient(circle at center 60%, rgba(255, 180, 100, 0.3) 0%, transparent 60%);
+}
+
+.mascot-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--mascot-bg);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.mascot-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--mascot-glow);
+  pointer-events: none;
+}
+
+.mascot-stage {
+  position: relative;
+  width: min(90%, 500px);
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mascot-sprite,
+.mascot-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  opacity: 0;
+  transition: opacity 120ms linear;
+  pointer-events: none;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5));
+  will-change: opacity;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.mascot-sprite.active,
+.mascot-video.active {
+  opacity: 1;
+}
+
+.mascot-nametag {
+  position: absolute;
+  top: 7%;
+  right: 10%;
+  width: 130px;
+  background: white;
+  border: 2px solid #c8102e;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: rotate(-4deg);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  z-index: 2;
+}
+
+.mascot-nametag::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 30% 30%, #f0f0f0, #888);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+
+.mascot-nametag-header {
+  display: block;
+  background: #c8102e;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 4px 6px 3px;
+}
+
+.mascot-nametag-name {
+  display: block;
+  color: #111;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 6px 6px 10px;
+  font-family: "Pacifico", "Segoe Script", cursive;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .mascot-nametag {
+    width: 100px;
+    top: 5%;
+    right: 6%;
+  }
+  .mascot-nametag-name { font-size: 22px; }
+  .mascot-nametag-header { font-size: 9px; }
+}
+
+.mascot-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  pointer-events: none;
+  animation: hint-pulse 3s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+/* Demo layout — split screen */
+.demo-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+}
+
+.demo-mascot-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+.demo-app-pane {
+  flex: 1;
+  min-width: 0;
+  padding: 40px;
+  background: #f5f6f8;
+  overflow-y: auto;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.demo-app-pane h1 {
+  color: #111;
+  margin-top: 0;
+}
+
+.demo-app-pane p {
+  color: #444;
+  line-height: 1.6;
+}
+
+.demo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.demo-buttons button {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 150ms;
+}
+
+.demo-buttons button:hover {
+  background: #e8efff;
+  border-color: #6b8aff;
+}
+
+@media (max-width: 720px) {
+  .demo-layout {
+    flex-direction: column;
+  }
+  .demo-mascot-pane, .demo-app-pane {
+    flex: none;
+    height: 50vh;
+  }
+}

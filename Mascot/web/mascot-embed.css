@@ -1,0 +1,162 @@
+@import url("https://fonts.googleapis.com/css2?family=Pacifico&display=swap");
+
+/* ── TED Mascot Embed ── */
+
+.ted-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+/* ── Name Tag ── */
+
+.ted-nametag {
+  position: absolute;
+  top: 7%;
+  right: 8%;
+  width: 120px;
+  background: white;
+  border: 2px solid #c8102e;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: rotate(-4deg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  z-index: 4;
+}
+
+.ted-nametag-header {
+  display: block;
+  background: #c8102e;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 6px 2px;
+}
+
+.ted-nametag-name {
+  display: block;
+  color: #111;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 5px 6px 8px;
+  font-family: "Pacifico", cursive;
+  line-height: 1;
+}
+
+/* ── Speech Bubble ── */
+
+.ted-bubble {
+  position: absolute;
+  bottom: 8%;
+  left: 8%;
+  right: 8%;
+  z-index: 5;
+  background: rgba(15, 20, 35, 0.92);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #e8e8e8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ted-bubble.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.ted-bubble::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(15, 20, 35, 0.92);
+}
+
+/* ── Video Stage ── */
+
+.ted-stage {
+  position: relative;
+  width: min(95%, 400px);
+  aspect-ratio: 9 / 16;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ted-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  opacity: 0;
+  transition: opacity 120ms linear;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.5));
+  will-change: opacity;
+  -webkit-user-drag: none;
+}
+
+.ted-video.active {
+  opacity: 1;
+}
+
+/* ── Hint ── */
+
+.ted-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  pointer-events: none;
+  animation: ted-pulse 3s ease-in-out infinite;
+}
+
+@keyframes ted-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.6; }
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .ted-nametag { width: 96px; top: 4%; right: 4%; }
+  .ted-nametag-name { font-size: 20px; }
+  .ted-nametag-header { font-size: 8px; }
+  .ted-bubble { font-size: 13px; padding: 10px 14px; left: 5%; right: 5%; }
+}

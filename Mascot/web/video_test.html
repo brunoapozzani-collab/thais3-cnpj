@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Test — Idle Breathing</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: white;
+    }
+    .wrap {
+      text-align: center;
+    }
+    h1 { margin-bottom: 24px; opacity: 0.8; font-weight: 500; }
+    video {
+      width: min(90vw, 400px);
+      aspect-ratio: 9 / 16;
+      background: transparent;
+      filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5));
+      border-radius: 8px;
+    }
+    p { opacity: 0.6; margin-top: 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TED — Teste de Respiração</h1>
+    <video src="../assets/videos/idle_breathing_loop.mp4" autoplay loop muted playsinline></video>
+    <p>Se parece suave e vivo, estamos no caminho certo.</p>
+  </div>
+</body>
+</html>
