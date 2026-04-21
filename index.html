@@ -426,34 +426,16 @@ header p{margin:6px 0 0;color:var(--mut);font-size:13px}
         await this._waitCanPlay(r);
         await r.play().catch(() => {});
 
+        // Fade reaction IN over the continuously running idle
         r.classList.add("active");
-        this.idleLayer.classList.remove("active");
-
-        // Pre-seek idle to the best-match frame now, while it is hidden.
-        // The reaction runs for ~8.5s, giving the seek ample time to complete
-        // before the xfade fires — eliminating the seeking=true snap at handoff.
-        this.idleLayer.pause();
-        this.idleLayer.currentTime = this._idleOffsets[name] ?? 0;
-
-        // Wait until XFADE_BEFORE seconds remain in the reaction clip
+        // idle layer never touched — runs continuously underneath
         await this._waitNearEnd(r, XFADE_BEFORE);
-
-        // Ensure the pre-seek has fully resolved before making idle visible
-        if (this.idleLayer.seeking) {
-          await new Promise(res => this.idleLayer.addEventListener('seeked', res, { once: true }));
-        }
-
-        // Phase 1: Fade reaction OUT — background briefly visible, no reverse motion
+        // Fade reaction OUT — idle underneath becomes visible again
         r.classList.remove("active");
         await new Promise(res => setTimeout(res, XFADE_MS));
         r.pause();
         r.src = "";
-
-        // Phase 2: Fade idle IN from background
-        await this.idleLayer.play().catch(() => {});
-        this.idleLayer.classList.add("active");
       } catch (e) {
-        this.idleLayer.classList.add("active");
         r.classList.remove("active");
         r.pause();
       }
