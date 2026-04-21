@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projectos Taag — Consulta CNPJ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0c14;--panel:#0f1524;--alt:#121a2b;--line:#1a2540;--mut:#8a9cc0;--grn:#7ec8e3;--blu:#5b9bd5;--red:#ef4444;--yel:#f59e0b;--purple:#a2d2ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#e6e9f0;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden}
+
+header{padding:24px 28px;border-bottom:1px solid var(--line);background:var(--panel);text-align:center}
+header h1{font-size:24px;font-weight:700;letter-spacing:-0.5px}
+header h1 span{color:var(--grn)}
+header p{margin:6px 0 0;color:var(--mut);font-size:13px}
+
+/* ── Two-column page layout ── */
+.page-layout{display:flex;min-height:calc(100vh - 82px);align-items:stretch}
+.robot-column{flex:0 0 42%;max-width:560px;background:linear-gradient(180deg,#0d1018 0%,#12151f 100%);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;position:sticky;top:0;height:calc(100vh - 82px);overflow:hidden;padding:0}
+.content-column{flex:1 1 auto;padding:0 0 60px;overflow-x:hidden}
+@media(max-width:900px){
+  .page-layout{flex-direction:column}
+  .robot-column{flex:0 0 auto;max-width:100%;width:100%;height:60vh;position:relative;border-right:none;border-bottom:1px solid var(--line)}
+}
+
+.search-area{max-width:560px;margin:40px auto 0;padding:0 24px}
+.search-box{display:flex;gap:8px}
+.search-box input{flex:1;background:#1c2030;border:2px solid var(--line);color:#e6e9f0;padding:16px 20px;border-radius:14px;font-size:18px;font-family:ui-monospace,Menlo,monospace;letter-spacing:2px;outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:var(--blu)}
+.search-box input::placeholder{color:#555d70;letter-spacing:0;font-family:Inter,system-ui,sans-serif;font-size:14px}
+.search-box button{background:var(--grn);border:none;color:#0a0c14;padding:16px 28px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
+.search-box button:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.search-box button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.input-error{color:var(--red);font-size:12px;margin-top:6px;text-align:center;min-height:18px}
+.search-hint{color:var(--mut);font-size:12px;text-align:center;margin-top:10px}
+
+/* ── Results ── */
+.results-area{max-width:640px;margin:32px auto 0;padding:0 24px 60px;display:none}
+.results-area.active{display:block}
+
+.result-header{text-align:center;margin-bottom:24px;animation:fadeInUp .4s ease-out}
+.result-company{font-size:22px;font-weight:700;margin-bottom:8px}
+.result-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px}
+.badge-ativa{background:rgba(0,212,170,.15);color:var(--grn);border:1px solid rgba(0,212,170,.3)}
+.badge-suspensa{background:rgba(245,158,11,.15);color:var(--yel);border:1px solid rgba(245,158,11,.3)}
+.badge-inapta{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.badge-baixada{background:rgba(138,147,166,.15);color:var(--mut);border:1px solid rgba(138,147,166,.3)}
+
+.result-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.result-cards{grid-template-columns:1fr}}
+.result-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;animation:fadeInUp .4s ease-out}
+.result-card.ie-card{border-color:var(--purple);box-shadow:0 0 12px rgba(167,139,250,.15)}
+.result-card-label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.result-card-value{font-size:15px;font-weight:600;word-break:break-word}
+.result-card.full-width{grid-column:1/-1}
+
+.new-search-btn{margin-top:28px;text-align:center}
+.new-search-btn button{background:var(--blu);border:none;color:#fff;padding:14px 32px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s}
+.new-search-btn button:hover{filter:brightness(1.15);transform:translateY(-1px)}
+
+/* Confetti */
+.confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+.confetti-piece{position:absolute;width:8px;height:8px;top:-10px;animation:confettiFall 3s ease-in forwards}
+
+/* ── App Animations ── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dotPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+@keyframes confettiFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+
+/* ── Thais Mascot Embed CSS ── */
+
+.thais-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.thais-nametag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 110px;
+  background: white;
+  border: 2px solid #5b9bd5;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transform: rotate(-3deg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  z-index: 4;
+}
+
+.thais-nametag-header {
+  display: block;
+  background: #5b9bd5;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 6px 2px;
+}
+
+.thais-nametag-name {
+  display: block;
+  color: #111;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 5px 6px 8px;
+  font-family: "Pacifico", cursive;
+  line-height: 1;
+}
+
+.thais-bubble {
+  position: absolute;
+  bottom: 8%;
+  left: 8%;
+  right: 8%;
+  z-index: 5;
+  background: rgba(15, 20, 35, 0.92);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #e8e8e8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.thais-bubble.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.thais-bubble::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(15, 20, 35, 0.92);
+}
+
+.thais-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thais-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
+  pointer-events: none;
+  will-change: opacity;
+  -webkit-user-drag: none;
+}
+
+.thais-video.active {
+  opacity: 1;
+}
+
+.thais-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  pointer-events: none;
+  animation: thais-pulse 3s ease-in-out infinite;
+}
+
+@keyframes thais-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.6; }
+}
+
+@media (max-width: 900px) {
+  .thais-nametag { width: 96px; top: 4%; right: 4%; }
+  .thais-nametag-name { font-size: 20px; }
+  .thais-nametag-header { font-size: 8px; }
+  .thais-bubble { font-size: 13px; padding: 10px 14px; left: 5%; right: 5%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Projectos <span>Taag</span></h1>
+  <p>Consulta CNPJ com dados completos da Receita Federal</p>
+</header>
+
+<div class="page-layout">
+<aside class="robot-column">
+  <div id="thais-container" style="width:100%;height:100%;"></div>
+</aside>
+
+<main class="content-column">
+
+<div class="search-area" id="searchArea">
+  <div class="search-box">
+    <input type="text" id="cnpjInput" placeholder="Digite o CNPJ..." maxlength="18" autocomplete="off">
+    <button id="searchBtn" onclick="startLookup()">CONSULTAR</button>
+  </div>
+  <div class="input-error" id="inputError"></div>
+  <div class="search-hint">Formato: XX.XXX.XXX/XXXX-XX</div>
+</div>
+
+<div class="results-area" id="resultsArea"></div>
+
+</main>
+</div>
+
+<!-- Thais Mascot Widget -->
+<script>
+(function () {
+  "use strict";
+
+  const REACTIONS = [
+    "wave", "laugh", "poke_reaction", "tickle_belly", "tickle_feet",
+    "angry", "happy", "sad", "sleepy", "pointing_right",
+  ];
+
+  const HIT_ZONES = [
+    { y: [0.00, 0.35], reactions: ["poke_reaction", "wave", "happy", "angry"] },
+    { y: [0.35, 0.70], reactions: ["tickle_belly", "laugh"] },
+    { y: [0.70, 1.00], reactions: ["tickle_feet"] },
+  ];
+
+  const FALLBACK_LINES = [
+    { animation: "wave", text: "Oi! Que bom te ver de novo! ❄️" },
+    { animation: "laugh", text: "Hahaha, tu tem coragem, hein!" },
+    { animation: "pointing_right", text: "Vamos lá, o frio não espera!" },
+    { animation: "happy", text: "Que maravilha, voltou! ✨" },
+    { animation: "sleepy", text: "Estou meditando... no gelo... 🧊" },
+    { animation: "angry", text: "Ei! Cuidado, posso congelar você! 🥶" },
+    { animation: "laugh", text: "Tu digita mais devagar que neve derrete ❄️" },
+    { animation: "pointing_right", text: "Vai, eu acredito em você!" },
+    { animation: "happy", text: "Perfeito, muito bem!" },
+    { animation: "sad", text: "Ah não... isso me deixou triste..." },
+    { animation: "wave", text: "Olha quem apareceu! Bem-vindo! 👋" },
+    { animation: "laugh", text: "Calma, estou processando... com elegância" },
+    { animation: "poke_reaction", text: "Ai! Não me toque sem avisar! ❄️" },
+    { animation: "angry", text: "Para! Estou concentrada aqui!" },
+    { animation: "sleepy", text: "Boceja... o inverno me deixa sonolenta..." },
+    { animation: "happy", text: "Sou a Thais, prazer! Agora vamos trabalhar!" },
+  ];
+
+  const BUBBLE_DURATION_MS = 5000;
+  const DEBOUNCE_MS = 2500;
+  const RATE_LIMIT_MS = 3000;
+
+
+  class ThaisMascot {
+    constructor(root, options = {}) {
+      this.root = root;
+      this.videosUrl = (options.videosUrl || "./assets/videos/").replace(/\/?$/, "/");
+      this.trashTalkEndpoint = options.trashTalkEndpoint || null;
+      this.name = options.name || "Thais";
+      this.idleClip = `${this.videosUrl}idle_breathing_loop.mp4`;
+
+      this.isBusy = false;
+      this._bubbleTimer = null;
+      this._debounceTimers = {};
+      this._lastLlmCall = 0;
+      this._idleOffsets = {};
+
+      this._build();
+      this._startIdle();
+      this._loadIdleOffsets(options.offsetsUrl || "./idle_offsets.json");
+    }
+
+    react(name) {
+      if (this.isBusy || !REACTIONS.includes(name)) return;
+      this._playReaction(name);
+    }
+
+    say(text, animation) {
+      if (animation && REACTIONS.includes(animation)) {
+        this._playReaction(animation);
+      }
+      this._showBubble(text);
+    }
+
+    onEvent(eventName, context = {}) {
+      const key = eventName;
+      if (this._debounceTimers[key]) clearTimeout(this._debounceTimers[key]);
+
+      if (eventName === "page_load") {
+        this._callTrashTalk(eventName, context);
+        return;
+      }
+
+      this._debounceTimers[key] = setTimeout(() => {
+        this._callTrashTalk(eventName, context);
+      }, DEBOUNCE_MS);
+    }
+
+    _build() {
+      this.root.classList.add("thais-root");
+
+      const nametag = document.createElement("div");
+      nametag.className = "thais-nametag";
+      nametag.innerHTML = `
+        <span class="thais-nametag-header">Olá, meu nome é</span>
+        <span class="thais-nametag-name">${this.name}</span>
+      `;
+      this.root.appendChild(nametag);
+
+      this.bubble = document.createElement("div");
+      this.bubble.className = "thais-bubble";
+      this.root.appendChild(this.bubble);
+
+      const stage = document.createElement("div");
+      stage.className = "thais-stage";
+      this.stage = stage;
+      this.root.appendChild(stage);
+
+      this.idleLayer = this._mkVideo("idle");
+      this.reactionLayer = this._mkVideo("reaction");
+      this.idleLayer.classList.add("active");
+      stage.appendChild(this.idleLayer);
+      stage.appendChild(this.reactionLayer);
+
+      const hint = document.createElement("div");
+      hint.className = "thais-hint";
+      hint.textContent = "toque para interagir";
+      this.root.appendChild(hint);
+
+      this.root.addEventListener("click", (e) => this._handleTap(e));
+      this.root.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 0) {
+          const t = e.touches[0];
+          this._handleTap({ clientX: t.clientX, clientY: t.clientY });
+        }
+      }, { passive: true });
+    }
+
+    _mkVideo(kind) {
+      const v = document.createElement("video");
+      v.className = `thais-video thais-video-${kind}`;
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = "auto";
+      v.setAttribute("webkit-playsinline", "true");
+      return v;
+    }
+
+    _startIdle() {
+      this.idleLayer.src = this.idleClip;
+      this.idleLayer.loop = true;
+      this.idleLayer.play().catch(() => {});
+
+    }
+
+    _loadIdleOffsets(url) {
+      fetch(url)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => { this._idleOffsets = data; })
+        .catch(() => { /* silently use frame 0 if unavailable */ });
+    }
+
+    _handleTap(event) {
+      if (this.isBusy) return;
+      const rect = this.stage.getBoundingClientRect();
+      const y = (event.clientY - rect.top) / rect.height;
+
+      const zone = HIT_ZONES.find(z => y >= z.y[0] && y <= z.y[1]);
+      const reaction = zone
+        ? zone.reactions[Math.floor(Math.random() * zone.reactions.length)]
+        : "wave";
+
+      this._callTrashTalk("poke", { bodyPart: zone ? zone.y[0] < 0.35 ? "head" : zone.y[0] < 0.7 ? "body" : "feet" : "outside" });
+    }
+
+    async _playReaction(name) {
+      if (this.isBusy) return;
+      this.isBusy = true;
+
+      const clipUrl = `${this.videosUrl}${name}_seamless.mp4`;
+      const r = this.reactionLayer;
+      const XFADE_MS = 300;       // must match CSS transition duration
+      const XFADE_BEFORE = 0.4;   // matches 400ms crossfade tail built into each seamless clip
+
+      try {
+        r.src = clipUrl;
+        r.loop = false;
+        r.currentTime = 0;
+        await this._waitCanPlay(r);
+        await r.play().catch(() => {});
+
+        r.classList.add("active");
+        this.idleLayer.classList.remove("active");
+
+        // Pre-seek idle to the best-match frame now, while it is hidden.
+        // The reaction runs for ~8.5s, giving the seek ample time to complete
+        // before the xfade fires — eliminating the seeking=true snap at handoff.
+        this.idleLayer.pause();
+        this.idleLayer.currentTime = this._idleOffsets[name] ?? 0;
+
+        // Wait until XFADE_BEFORE seconds remain in the reaction clip
+        await this._waitNearEnd(r, XFADE_BEFORE);
+
+        // Ensure the pre-seek has fully resolved before making idle visible
+        if (this.idleLayer.seeking) {
+          await new Promise(res => this.idleLayer.addEventListener('seeked', res, { once: true }));
+        }
+
+        // Crossfade: resume idle (already at matching frame) and fade it in
+        await this.idleLayer.play().catch(() => {});
+        this.idleLayer.classList.add("active");
+        r.classList.remove("active");
+
+        await new Promise(res => setTimeout(res, XFADE_MS));
+        r.pause();
+        r.src = "";
+      } catch (e) {
+        this.idleLayer.classList.add("active");
+        r.classList.remove("active");
+        r.pause();
+      }
+
+      this.isBusy = false;
+    }
+
+    _waitNearEnd(video, secondsBefore) {
+      return new Promise(resolve => {
+        const onEnded = () => {
+          video.removeEventListener("ended", onEnded);
+          resolve();
+        };
+        video.addEventListener("ended", onEnded);
+
+        const check = () => {
+          if (video.ended || video.paused) return;
+          const remaining = isFinite(video.duration) ? video.duration - video.currentTime : Infinity;
+          if (remaining <= secondsBefore) {
+            video.removeEventListener("ended", onEnded);
+            resolve();
+          } else {
+            requestAnimationFrame(check);
+          }
+        };
+        requestAnimationFrame(check);
+      });
+    }
+
+    _waitCanPlay(video, timeoutMs = 5000) {
+      return new Promise((resolve, reject) => {
+        if (video.readyState >= 3) return resolve();
+        let done = false;
+        const cleanup = () => { video.removeEventListener("canplay", ok); video.removeEventListener("error", fail); };
+        const ok = () => { if (done) return; done = true; cleanup(); resolve(); };
+        const fail = () => { if (done) return; done = true; cleanup(); reject(new Error("load error")); };
+        video.addEventListener("canplay", ok);
+        video.addEventListener("error", fail);
+        setTimeout(() => { if (done) return; done = true; cleanup(); reject(new Error("timeout")); }, timeoutMs);
+      });
+    }
+
+    _showBubble(text) {
+      if (!text) return;
+      clearTimeout(this._bubbleTimer);
+      this.bubble.textContent = text;
+      this.bubble.classList.add("visible");
+      this._bubbleTimer = setTimeout(() => {
+        this.bubble.classList.remove("visible");
+      }, BUBBLE_DURATION_MS);
+    }
+
+    async _callTrashTalk(event, context) {
+      const now = Date.now();
+      if (now - this._lastLlmCall < RATE_LIMIT_MS) {
+        this._useFallback(event);
+        return;
+      }
+
+      if (!this.trashTalkEndpoint) {
+        this._useFallback(event);
+        return;
+      }
+
+      this._lastLlmCall = now;
+
+      try {
+        const resp = await fetch(this.trashTalkEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event, context }),
+        });
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const data = await resp.json();
+        const anim = REACTIONS.includes(data.animation) ? data.animation : "wave";
+        const text = (data.text || "").slice(0, 120);
+
+        if (text) this._showBubble(text);
+        if (anim) this._playReaction(anim);
+      } catch (e) {
+        console.warn("Thais trash-talk failed:", e.message);
+        this._useFallback(event);
+      }
+    }
+
+    _useFallback(event) {
+      const eventMap = {
+        page_load: ["wave", "happy"],
+        cnpj_typing: ["pointing_right", "laugh"],
+        lookup_started: ["happy", "pointing_right"],
+        lookup_result: ["happy", "laugh", "wave"],
+        lookup_error: ["sad", "angry"],
+        idle_tick: ["sleepy", "wave", "pointing_right"],
+        poke: ["poke_reaction", "angry", "tickle_belly", "laugh"],
+      };
+      const pool = eventMap[event] || ["wave"];
+      const anim = pool[Math.floor(Math.random() * pool.length)];
+      const matching = FALLBACK_LINES.filter(l => l.animation === anim);
+      const line = matching.length > 0
+        ? matching[Math.floor(Math.random() * matching.length)]
+        : FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)];
+
+      this._showBubble(line.text);
+      this._playReaction(line.animation);
+    }
+  }
+
+  window.THAIS = {
+    init(container, options) {
+      return new ThaisMascot(container, options);
+    },
+  };
+})();
+</script>
+
+<script>
+/* ── State ── */
+let companyData = null;
+window.isSearching = false;
+
+/* ── CNPJ Validation ── */
+const cnpjInput = document.getElementById('cnpjInput');
+const inputError = document.getElementById('inputError');
+
+let cnpjTypingTimer = null;
+cnpjInput.addEventListener('input', function(e) {
+  let v = e.target.value.replace(/\D/g, '');
+  if (v.length > 14) v = v.slice(0, 14);
+  if (v.length > 12) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5,8)+'/'+v.slice(8,12)+'-'+v.slice(12);
+  else if (v.length > 8) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5,8)+'/'+v.slice(8);
+  else if (v.length > 5) v = v.slice(0,2)+'.'+v.slice(2,5)+'.'+v.slice(5);
+  else if (v.length > 2) v = v.slice(0,2)+'.'+v.slice(2);
+  e.target.value = v;
+  inputError.textContent = '';
+
+  // Fire Thais typing event after pause
+  clearTimeout(cnpjTypingTimer);
+  cnpjTypingTimer = setTimeout(() => {
+    if (window.thais) thais.onEvent('cnpj_typing', { partial: cnpjInput.value });
+  }, 800);
+});
+
+cnpjInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') startLookup();
+});
+
+function validateCNPJ(cnpj) {
+  const d = cnpj.replace(/\D/g, '');
+  if (d.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(d)) return false;
+  const calc = (arr, digits) => {
+    let s = 0;
+    for (let i = 0; i < arr.length; i++) s += parseInt(digits[i]) * arr[i];
+    const r = s % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const w1 = [5,4,3,2,9,8,7,6,5,4,3,2];
+  const w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+  if (calc(w1, d) !== parseInt(d[12])) return false;
+  if (calc(w2, d) !== parseInt(d[13])) return false;
+  return true;
+}
+
+/* ── Confetti ── */
+function launchConfetti() {
+  const c = document.createElement('div');
+  c.className = 'confetti-container';
+  document.body.appendChild(c);
+  const colors = ['var(--grn)','var(--blu)','var(--yel)','var(--purple)','var(--red)','#fff'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random()*100+'%';
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDelay = Math.random()*1.5+'s';
+    p.style.animationDuration = (2+Math.random()*2)+'s';
+    p.style.width = (4+Math.random()*8)+'px';
+    p.style.height = (4+Math.random()*8)+'px';
+    p.style.borderRadius = Math.random()>.5?'50%':'2px';
+    c.appendChild(p);
+  }
+  setTimeout(() => c.remove(), 4000);
+}
+
+/* ── Main Flow ── */
+function startLookup() {
+  const raw = cnpjInput.value.replace(/\D/g, '');
+  if (!validateCNPJ(raw)) {
+    inputError.textContent = 'CNPJ invalido. Verifique os digitos.';
+    return;
+  }
+  inputError.textContent = '';
+  companyData = null;
+  window.isSearching = true;
+
+  // Disable search
+  document.getElementById('searchBtn').disabled = true;
+  cnpjInput.disabled = true;
+
+  // Hide results
+  document.getElementById('resultsArea').classList.remove('active');
+  document.getElementById('resultsArea').innerHTML = '';
+
+  // Tell Thais we're searching
+  if (window.thais) thais.say('Consultando na Receita...', 'pointing_right');
+
+  // SSE lookup
+  const HOST = window.location.hostname;
+  const IS_LOCAL = HOST === 'localhost' || HOST === '127.0.0.1';
+  const streamUrl = IS_LOCAL
+    ? '/api/lookup-stream?cnpj=' + raw
+    : 'https://antgruwugsizmtcfjglo.supabase.co/functions/v1/debora/api/lookup-stream?cnpj=' + raw;
+  const es = new EventSource(streamUrl);
+
+  es.addEventListener('status', function(e) {
+    const d = JSON.parse(e.data);
+    if (window.thais) thais.say(d.message || d.msg, 'pointing_right');
+  });
+
+  es.addEventListener('result', function(e) {
+    companyData = JSON.parse(e.data);
+    if (window.thais) thais.onEvent('lookup_result', {
+      razaoSocial: companyData.razao_social,
+      situacao: companyData.situacao_cadastral,
+      uf: companyData.uf,
+      ie: companyData.inscricao_estadual
+    });
+  });
+
+  es.addEventListener('done', function(e) {
+    es.close();
+    window.isSearching = false;
+
+    if (!companyData) {
+      if (window.thais) thais.say('Não encontrei nada...', 'sad');
+      enableSearch();
+      return;
+    }
+
+    if (window.thais) thais.react('happy');
+    launchConfetti();
+    showResults();
+    enableSearch();
+  });
+
+  es.addEventListener('error', function(e) {
+    es.close();
+    window.isSearching = false;
+
+    let errMsg = 'Deu ruim na consulta...';
+    try {
+      const d = JSON.parse(e.data);
+      const m = d && (d.message || d.msg);
+      if (m) errMsg = 'Erro: ' + m;
+    } catch(_) {}
+    if (window.thais) thais.onEvent('lookup_error', { message: errMsg });
+    enableSearch();
+  });
+
+  es.onerror = function() {
+    es.close();
+    if (window.isSearching) {
+      window.isSearching = false;
+      if (window.thais) thais.say('A conexão caiu!', 'sad');
+      enableSearch();
+    }
+  };
+}
+
+/* ── Show Results ── */
+function showResults() {
+  const d = companyData;
+  if (!d) return;
+
+  const ie = (d.inscricao_estadual || '').trim();
+  const situacaoIE = (d.situacao_ie || '').trim();
+  const ieReason = (d._ie_unavailable_reason || '').trim();
+
+  // Format IE with dots every 3 digits (e.g. 310035324119 → 310.035.324.119)
+  const formatIE = (raw) => raw.replace(/\D/g, '').replace(/(\d)(?=(\d{3})+$)/g, '$1.');
+
+  // Only flag situacao_ie if it signals a real problem (not "Sem restrição" = clean/active)
+  const ieProblem = situacaoIE && !/sem restri/i.test(situacaoIE) && !/ativa/i.test(situacaoIE);
+
+  const area = document.getElementById('resultsArea');
+  const sit = (d.situacao_cadastral || '').toUpperCase();
+  let badgeClass = 'badge-ativa';
+  if (sit.includes('SUSPENS')) badgeClass = 'badge-suspensa';
+  else if (sit.includes('INAPT')) badgeClass = 'badge-inapta';
+  else if (sit.includes('BAIXAD')) badgeClass = 'badge-baixada';
+
+  const formatCurrency = (v) => {
+    if (v == null) return '-';
+    return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  };
+
+  const cards = [
+    {label:'Razao Social', value: d.razao_social || '-', full: true},
+    {label:'Nome Fantasia', value: d.nome_fantasia || '-', full: true},
+    {label:'CNPJ', value: d.cnpj || '-'},
+    {label:'Situacao Cadastral', value: d.situacao_cadastral || '-'},
+    {label:'CNAE Principal', value: d.cnae_principal || '-', full: true},
+    {label:'Data de Abertura', value: d.data_abertura || '-'},
+    {label:'Capital Social', value: formatCurrency(d.capital_social)},
+    {label:'Porte', value: d.porte || '-'},
+    {label:'Natureza Juridica', value: d.natureza_juridica || '-', full: true},
+    {label:'Endereco', value: [d.endereco || d.logradouro, d.bairro, d.municipio, d.uf, d.cep].filter(Boolean).join(', ') || '-', full: true},
+    {label:'Telefone', value: d.telefone || '-'},
+    {label:'Email', value: d.email || '-'},
+  ];
+
+  if (ie) {
+    cards.push({
+      label: 'Inscricao Estadual',
+      value: formatIE(ie) + (ieProblem ? ' (' + situacaoIE + ')' : ''),
+      ie: true
+    });
+  } else {
+    cards.push({
+      label: 'Inscricao Estadual',
+      value: ieReason || 'Nao disponivel',
+      ie: true
+    });
+  }
+
+  let html = '<div class="result-header">';
+  html += '<div class="result-company">' + esc(d.razao_social || d.nome_fantasia || '-') + '</div>';
+  html += '<span class="result-badge ' + badgeClass + '">' + esc(sit || 'N/A') + '</span>';
+  html += '</div>';
+  html += '<div class="result-cards">';
+
+  cards.forEach((c, i) => {
+    const cls = ['result-card'];
+    if (c.full) cls.push('full-width');
+    if (c.ie) cls.push('ie-card');
+    cls.push('');
+    html += '<div class="' + cls.join(' ').trim() + '" style="animation-delay:' + (i*0.05) + 's">';
+    html += '<div class="result-card-label">' + esc(c.label) + '</div>';
+    html += '<div class="result-card-value">' + esc(c.value) + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  html += '<div class="new-search-btn"><button onclick="resetAll()">Nova Consulta</button></div>';
+
+  area.innerHTML = html;
+  area.classList.add('active');
+  area.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+function enableSearch() {
+  document.getElementById('searchBtn').disabled = false;
+  cnpjInput.disabled = false;
+}
+
+function resetAll() {
+  companyData = null;
+  window.isSearching = false;
+
+  document.getElementById('resultsArea').classList.remove('active');
+  document.getElementById('resultsArea').innerHTML = '';
+
+  cnpjInput.value = '';
+  cnpjInput.disabled = false;
+  document.getElementById('searchBtn').disabled = false;
+  inputError.textContent = '';
+  cnpjInput.focus();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ── Initialize Thais ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const HOST = window.location.hostname;
+  const IS_LOCAL = HOST === 'localhost' || HOST === '127.0.0.1';
+
+  window.thais = THAIS.init(document.getElementById('thais-container'), {
+    videosUrl: IS_LOCAL
+      ? '/mascot-assets/'
+      : 'https://antgruwugsizmtcfjglo.supabase.co/storage/v1/object/public/mascot-assets/',
+  });
+
+  // Greet user on page load
+  thais.onEvent('page_load', { pageName: 'Projectos Taag' });
+
+  // Idle chatter every 20s
+  setInterval(() => {
+    if (!window.isSearching) thais.onEvent('idle_tick', {});
+  }, 20000);
+});
+</script>
+</body>
+</html>
