@@ -443,14 +443,15 @@ header p{margin:6px 0 0;color:var(--mut);font-size:13px}
           await new Promise(res => this.idleLayer.addEventListener('seeked', res, { once: true }));
         }
 
-        // Crossfade: resume idle (already at matching frame) and fade it in
-        await this.idleLayer.play().catch(() => {});
-        this.idleLayer.classList.add("active");
+        // Phase 1: Fade reaction OUT — background briefly visible, no reverse motion
         r.classList.remove("active");
-
         await new Promise(res => setTimeout(res, XFADE_MS));
         r.pause();
         r.src = "";
+
+        // Phase 2: Fade idle IN from background
+        await this.idleLayer.play().catch(() => {});
+        this.idleLayer.classList.add("active");
       } catch (e) {
         this.idleLayer.classList.add("active");
         r.classList.remove("active");
