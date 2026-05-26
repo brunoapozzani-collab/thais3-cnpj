@@ -4,7 +4,7 @@ Interactive Elsa-inspired mascot (My Talking Tom-style) that lives on the Projec
 
 ## Before working, read:
 
-- **WAT framework:** `../../templates/docs/wat-framework.md`
+- **WAT framework:** `../../../templates/docs/wat-framework.md`
 - **Sprite generation pipeline:** `workflows/sprite_generation.md`
 
 ## Character Reference
