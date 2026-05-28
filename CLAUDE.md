@@ -1,4 +1,4 @@
-# Projectos Taag — Consulta CNPJ + IE
+# Projetos Taag — Consulta CNPJ + IE
 
 Web app that looks up Brazilian companies by CNPJ. Displays full tax registration data (legal name, **Inscrição Estadual**, address, phone, email, tax status, etc.) with an animated Elsa-inspired mascot "Thais" that narrates the search progress.
 

@@ -1,6 +1,7 @@
 .env
 .env.local
 .env.*.local
+.env.deploy
 credentials.json
 token.json
 .supabase_db_password
