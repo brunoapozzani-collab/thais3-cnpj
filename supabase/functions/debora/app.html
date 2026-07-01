@@ -653,7 +653,7 @@ function startLookup() {
   const IS_LOCAL = HOST === 'localhost' || HOST === '127.0.0.1';
   const streamUrl = IS_LOCAL
     ? '/api/lookup-stream?cnpj=' + raw
-    : 'https://antgruwugsizmtcfjglo.supabase.co/functions/v1/debora/api/lookup-stream?cnpj=' + raw;
+    : 'https://dbgixpgcoatdtafgakfv.supabase.co/functions/v1/debora/api/lookup-stream?cnpj=' + raw;
   const es = new EventSource(streamUrl);
 
   es.addEventListener('status', function(e) {
@@ -817,11 +817,11 @@ async function fetchIe() {
   const uf = companyData.uf || '';
   const fmtIE = (raw) => (raw || '').replace(/\D/g, '').replace(/(\d)(?=(\d{3})+$)/g, '$1.');
   body.innerHTML = '<div class="result-card-value">Consultando...</div>';
-  if (window.ted) ted.say('Buscando a Inscrição Estadual...', 'pointing_right');
+  if (window.thais) thais.say('Buscando a Inscrição Estadual...', 'pointing_right');
 
   const HOST = window.location.hostname;
   const IS_LOCAL = HOST === 'localhost' || HOST === '127.0.0.1';
-  const base = IS_LOCAL ? '' : 'https://antgruwugsizmtcfjglo.supabase.co/functions/v1/debora';
+  const base = IS_LOCAL ? '' : 'https://dbgixpgcoatdtafgakfv.supabase.co/functions/v1/debora';
   const ieUrl = base + '/api/ie?cnpj=' + cnpjDigits + '&uf=' + encodeURIComponent(uf);
 
   try {
@@ -831,7 +831,7 @@ async function fetchIe() {
       const situ = (dd.situacao_ie || '').trim();
       const problem = situ && !/sem restri/i.test(situ) && !/ativa/i.test(situ);
       body.innerHTML = '<div class="result-card-value">' + esc(fmtIE(dd.inscricao_estadual) + (problem ? ' (' + situ + ')' : '')) + '</div>' + ieSourceTag(dd._ie_source);
-      if (window.ted) ted.react('happy');
+      if (window.thais) thais.react('happy');
     } else {
       body.innerHTML = '<div class="result-card-value ie-unavailable">' + esc(dd._ie_unavailable_reason || 'IE indisponível') + '</div>' + ieSourceTag(dd._ie_source);
     }
@@ -869,7 +869,10 @@ document.addEventListener('DOMContentLoaded', () => {
   window.thais = THAIS.init(document.getElementById('thais-container'), {
     videosUrl: IS_LOCAL
       ? '/mascot-assets/'
-      : 'https://antgruwugsizmtcfjglo.supabase.co/storage/v1/object/public/mascot-assets/',
+      : 'https://dbgixpgcoatdtafgakfv.supabase.co/storage/v1/object/public/mascot-assets/',
+    trashTalkEndpoint: IS_LOCAL
+      ? '/api/trash-talk'
+      : 'https://dbgixpgcoatdtafgakfv.supabase.co/functions/v1/debora/api/trash-talk',
   });
 
   // Greet user on page load

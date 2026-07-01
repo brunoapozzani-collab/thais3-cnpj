@@ -22,7 +22,7 @@ if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-PROJECT_REF=antgruwugsizmtcfjglo
+PROJECT_REF=dbgixpgcoatdtafgakfv
 
 echo "=== Step 1: Re-encode html.ts from app.html ==="
 base64 -i "$APP_HTML" | tr -d '\n' | \
