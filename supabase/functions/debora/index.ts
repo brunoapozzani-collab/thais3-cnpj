@@ -3,6 +3,7 @@
 // Ports tools/sintegra_lookup.py + tools/helpers.py + server.py to Deno/TypeScript.
 
 import { APP_HTML_B64 } from "./html.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const APP_HTML = new TextDecoder().decode(
   Uint8Array.from(atob(APP_HTML_B64), (c) => c.charCodeAt(0)),
@@ -31,6 +32,7 @@ type NormalizedResult = {
   _ie_unavailable_reason: string;
   _source: string;
   _cached_at: string;
+  _ie_source?: string;
 };
 
 const CNPJA_DEFAULT_URL = "https://api.cnpja.com";
@@ -133,14 +135,71 @@ function sintegraConfig(): { url: string; token: string } | null {
   return { url, token };
 }
 
+// ── IE cache (Supabase Postgres, cross-invocation) ──
+// Only *definitive* results are ever written here: a found IE, or a source that
+// cleanly responded "this CNPJ has no IE". Transient failures (429/network) are
+// never cached, so they retry on the next request.
+type CachedIe = {
+  inscricao_estadual: string;
+  situacao_ie: string;
+  uf: string;
+  reason: string;
+  source: string;
+};
+
+function cacheClient() {
+  const url = (Deno.env.get("SUPABASE_URL") || "").trim();
+  const key = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function cacheGet(digits: string): Promise<CachedIe | null> {
+  const sb = cacheClient();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from("ie_cache")
+      .select("inscricao_estadual, situacao_ie, uf, reason, source")
+      .eq("cnpj", digits)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data as CachedIe;
+  } catch {
+    return null;
+  }
+}
+
+async function cachePut(entry: { digits: string; uf: string; ie: string; situ: string; reason: string; source: string }): Promise<void> {
+  const sb = cacheClient();
+  if (!sb) return;
+  try {
+    await sb.from("ie_cache").upsert(
+      {
+        cnpj: entry.digits,
+        uf: entry.uf,
+        inscricao_estadual: entry.ie,
+        situacao_ie: entry.situ,
+        reason: entry.reason,
+        source: entry.source,
+        cached_at: new Date().toISOString(),
+      },
+      { onConflict: "cnpj" },
+    );
+  } catch {
+    // Best-effort: a cache write failure must never break the lookup.
+  }
+}
+
 async function callCnpja(
   digits: string,
+  registrations = "BR",
 ): Promise<{ ok: true; raw: any } | { ok: false; reason: string } | null> {
   const cfg = cnpjaConfig();
   if (!cfg) return null;
   try {
     const resp = await fetch(
-      `${cfg.url}/office/${digits}?registrations=BR`,
+      `${cfg.url}/office/${digits}?registrations=${encodeURIComponent(registrations)}`,
       { headers: { Authorization: cfg.key }, signal: AbortSignal.timeout(30_000) },
     );
     if (resp.status === 429) return { ok: false, reason: "Limite de consultas CNPJá atingido (aguarde alguns minutos)" };
@@ -441,72 +500,47 @@ async function lookupCnpj(cnpj: string, emit: EmitFn): Promise<NormalizedResult>
     throw new Error(`CNPJ invalido: ${cnpj}`);
   }
 
-  const cnpja = cnpjaConfig();
-  const sint = sintegraConfig();
-  const ieSourceAvailable = Boolean(cnpja || sint);
-
+  // Cadastral data comes from FREE sources only — no paid CNPJá credits are
+  // ever spent on a plain lookup. CNPJá is reserved strictly for a targeted,
+  // per-UF IE fetch via the lazy /api/ie endpoint.
   let result: NormalizedResult | null = null;
-  let ieReasonForFallback = "Nenhuma fonte de IE configurada";
 
-  if (cnpja) {
-    emit("status", {
-      msg: "Consultando CNPJá (Receita Federal + Inscricao Estadual)...",
-      message: "Consultando CNPJá (Receita Federal + Inscricao Estadual)...",
-    });
-    const res = await callCnpja(digits);
-    if (res && "ok" in res && res.ok) {
-      result = normalizeCnpja(res.raw, digits);
-      const ieVal = result.inscricao_estadual;
-      const msg = ieVal ? `IE encontrada: ${ieVal}` : (result._ie_unavailable_reason || "CNPJá sem IE para este CNPJ");
-      emit("status", { msg, message: msg });
-    } else if (res && !res.ok) {
-      ieReasonForFallback = res.reason || ieReasonForFallback;
-      emit("status", {
-        msg: "CNPJá indisponivel, buscando dados cadastrais...",
-        message: "CNPJá indisponivel, buscando dados cadastrais...",
-      });
-    }
-  }
-
-  if (!result && sint) {
-    emit("status", {
-      msg: "Consultando SintegraWS (fallback de IE)...",
-      message: "Consultando SintegraWS (fallback de IE)...",
-    });
-    const res = await callSintegra(digits);
-    if (res && "ok" in res && res.ok) {
-      result = normalizeSintegra(res.raw, digits);
-      const ieVal = result.inscricao_estadual;
-      const msg = ieVal ? `IE encontrada: ${ieVal}` : (result._ie_unavailable_reason || "Sintegra sem IE para este CNPJ");
-      emit("status", { msg, message: msg });
-    } else if (res && !res.ok) {
-      ieReasonForFallback = res.reason || ieReasonForFallback;
-    }
-  }
-
-  if (!result && !ieSourceAvailable) {
-    ieReasonForFallback = "Configure CNPJA_API_KEY para obter IE";
-    emit("status", {
-      msg: "Nenhuma fonte de IE configurada, buscando dados cadastrais...",
-      message: "Nenhuma fonte de IE configurada, buscando dados cadastrais...",
-    });
-  }
-
-  if (!result) {
-    emit("status", { msg: "Consultando BrasilAPI...", message: "Consultando BrasilAPI..." });
-    result = await fetchBrasilapi(digits, ieReasonForFallback);
-  }
+  emit("status", { msg: "Consultando BrasilAPI...", message: "Consultando BrasilAPI..." });
+  result = await fetchBrasilapi(digits, "");
 
   if (!result) {
     emit("status", {
       msg: "Tentando fonte alternativa (ReceitaWS)...",
       message: "Tentando fonte alternativa (ReceitaWS)...",
     });
-    result = await fetchReceitaws(digits, ieReasonForFallback);
+    result = await fetchReceitaws(digits, "");
   }
 
   if (!result) {
     throw new Error("Nao foi possivel consultar este CNPJ. Verifique se o numero esta correto e tente novamente.");
+  }
+
+  // IE during the stream is CACHE-ONLY (no paid call). If we already have it,
+  // show it instantly and for free. Otherwise the frontend renders a
+  // "Consultar Inscrição Estadual" button that hits /api/ie on demand.
+  const ieSourceAvailable = Boolean(cnpjaConfig() || sintegraConfig());
+  const cached = await cacheGet(digits);
+  if (cached && cached.inscricao_estadual) {
+    result.inscricao_estadual = cached.inscricao_estadual;
+    result.situacao_ie = cached.situacao_ie;
+    result._ie_unavailable_reason = "";
+    result._ie_source = cached.source || "cache";
+  } else if (cached) {
+    // Definitive "no IE" was cached previously — surface it, don't offer a fetch.
+    result.inscricao_estadual = "";
+    result.situacao_ie = "";
+    result._ie_unavailable_reason = cached.reason || "CNPJ sem Inscricao Estadual";
+    result._ie_source = "cache";
+  } else if (ieSourceAvailable) {
+    // Not cached — signal the frontend to offer an on-demand IE fetch.
+    result._ie_unavailable_reason = "__lazy__";
+  } else {
+    result._ie_unavailable_reason = "Configure CNPJA_API_KEY para obter IE";
   }
 
   emit("status", { msg: "Preparando resultados...", message: "Preparando resultados..." });
@@ -568,6 +602,85 @@ function handleStream(url: URL): Response {
       ...CORS_HEADERS,
     },
   });
+}
+
+// ── Lazy IE lookup (on-demand, per-UF, cached) ──
+// Order: cache → CNPJá (own UF only) → SintegraWS (own UF only) → loud fail.
+// Paid credits are spent here ONLY, and only for the company's single state.
+async function handleIe(url: URL): Promise<Response> {
+  const jsonHeaders = { "content-type": "application/json", ...CORS_HEADERS };
+  const json = (payload: Record<string, unknown>, status = 200) =>
+    new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
+
+  const digits = stripCnpj(url.searchParams.get("cnpj") || "");
+  const refresh = url.searchParams.get("refresh") === "1";
+  let uf = (url.searchParams.get("uf") || "").trim().toUpperCase();
+
+  if (!validateCnpj(digits)) {
+    return json({ inscricao_estadual: "", situacao_ie: "", _ie_source: "none", _ie_unavailable_reason: "CNPJ invalido" }, 400);
+  }
+
+  // 1. Cache — instant, free, no external call.
+  if (!refresh) {
+    const cached = await cacheGet(digits);
+    if (cached) {
+      return json({
+        inscricao_estadual: cached.inscricao_estadual,
+        situacao_ie: cached.situacao_ie,
+        _ie_source: "cache",
+        _ie_unavailable_reason: cached.inscricao_estadual ? "" : (cached.reason || "CNPJ sem Inscricao Estadual"),
+      });
+    }
+  }
+
+  // We only ever query the company's own UF. Derive it for free if not passed.
+  if (!uf) {
+    const cad = (await fetchBrasilapi(digits, "")) ?? (await fetchReceitaws(digits, ""));
+    uf = (cad?.uf || "").toUpperCase();
+  }
+
+  // Track whether a source cleanly answered "no IE" (definitive, cacheable) vs
+  // a transient failure (429/network — never cached, must retry).
+  let cleanNoIe = false;
+  let noIeReason = "CNPJ sem Inscricao Estadual ativa";
+
+  // 2. CNPJá — single state only (~1 credit vs 27 for registrations=BR).
+  if (cnpjaConfig() && uf) {
+    const res = await callCnpja(digits, uf);
+    if (res && "ok" in res && res.ok) {
+      const norm = normalizeCnpja(res.raw, digits);
+      if (norm.inscricao_estadual) {
+        await cachePut({ digits, uf, ie: norm.inscricao_estadual, situ: norm.situacao_ie, reason: "", source: "cnpja" });
+        return json({ inscricao_estadual: norm.inscricao_estadual, situacao_ie: norm.situacao_ie, _ie_source: "cnpja", _ie_unavailable_reason: "" });
+      }
+      cleanNoIe = true;
+      noIeReason = norm._ie_unavailable_reason || noIeReason;
+    }
+    // res.ok === false (429/401/etc.) → transient; fall through to SintegraWS.
+  }
+
+  // 3. SintegraWS — cheap insurance, fires only because CNPJá gave no IE.
+  if (sintegraConfig()) {
+    const res = await callSintegra(digits);
+    if (res && "ok" in res && res.ok) {
+      const norm = normalizeSintegra(res.raw, digits);
+      if (norm.inscricao_estadual) {
+        await cachePut({ digits, uf: uf || norm.uf, ie: norm.inscricao_estadual, situ: norm.situacao_ie, reason: "", source: "sintegra" });
+        return json({ inscricao_estadual: norm.inscricao_estadual, situacao_ie: norm.situacao_ie, _ie_source: "sintegra", _ie_unavailable_reason: "" });
+      }
+      cleanNoIe = true;
+      noIeReason = norm._ie_unavailable_reason || noIeReason;
+    }
+  }
+
+  // 4. Definitive "no IE" (a source answered cleanly) → cache so we never re-spend.
+  if (cleanNoIe) {
+    await cachePut({ digits, uf, ie: "", situ: "", reason: noIeReason, source: "none" });
+    return json({ inscricao_estadual: "", situacao_ie: "", _ie_source: "none", _ie_unavailable_reason: noIeReason });
+  }
+
+  // Both sources failed transiently — loud, not cached, retryable.
+  return json({ inscricao_estadual: "", situacao_ie: "", _ie_source: "none", _ie_unavailable_reason: "IE indisponível (fonte temporariamente indisponível)" });
 }
 
 // ── TED Trash-Talk (LLM-powered mascot reactions) ──
@@ -671,6 +784,10 @@ Deno.serve(async (req) => {
 
   if (url.pathname.endsWith("/stream") || url.pathname.endsWith("/api/lookup-stream")) {
     return handleStream(url);
+  }
+
+  if (url.pathname.endsWith("/api/ie")) {
+    return handleIe(url);
   }
 
   if (url.pathname.endsWith("/api/trash-talk") && req.method === "POST") {

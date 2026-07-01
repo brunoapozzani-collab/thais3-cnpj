@@ -60,6 +60,10 @@ header p{margin:6px 0 0;color:var(--mut);font-size:13px}
 .new-search-btn{margin-top:28px;text-align:center}
 .new-search-btn button{background:var(--blu);border:none;color:#fff;padding:14px 32px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s}
 .new-search-btn button:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.ie-fetch-btn{background:var(--purple);border:none;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px}
+.ie-fetch-btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.ie-source{font-size:11px;font-weight:600;color:var(--purple);opacity:.7;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+.result-card-value.ie-unavailable{font-weight:500;opacity:.8;font-size:14px}
 
 /* Confetti */
 .confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
@@ -749,19 +753,22 @@ function showResults() {
     {label:'Email', value: d.email || '-'},
   ];
 
+  // IE card: auto-show when we already have it (from cache — instant & free);
+  // otherwise offer an on-demand fetch ('__lazy__') that hits /api/ie.
+  const ieSource = (d._ie_source || '').trim();
+  let ieBodyHtml;
   if (ie) {
-    cards.push({
-      label: 'Inscricao Estadual',
-      value: formatIE(ie) + (ieProblem ? ' (' + situacaoIE + ')' : ''),
-      ie: true
-    });
+    ieBodyHtml = '<div class="result-card-value">' + esc(formatIE(ie) + (ieProblem ? ' (' + situacaoIE + ')' : '')) + '</div>' + ieSourceTag(ieSource);
+  } else if (ieReason === '__lazy__') {
+    ieBodyHtml = '<button class="ie-fetch-btn" onclick="fetchIe()">Consultar Inscrição Estadual</button>';
   } else {
-    cards.push({
-      label: 'Inscricao Estadual',
-      value: ieReason || 'Nao disponivel',
-      ie: true
-    });
+    ieBodyHtml = '<div class="result-card-value ie-unavailable">' + esc(ieReason || 'Nao disponivel') + '</div>' + ieSourceTag(ieSource);
   }
+  cards.push({
+    label: 'Inscricao Estadual',
+    ie: true,
+    bodyHtml: '<div id="ie-card-body">' + ieBodyHtml + '</div>'
+  });
 
   let html = '<div class="result-header">';
   html += '<div class="result-company">' + esc(d.razao_social || d.nome_fantasia || '-') + '</div>';
@@ -776,7 +783,7 @@ function showResults() {
     cls.push('');
     html += '<div class="' + cls.join(' ').trim() + '" style="animation-delay:' + (i*0.05) + 's">';
     html += '<div class="result-card-label">' + esc(c.label) + '</div>';
-    html += '<div class="result-card-value">' + esc(c.value) + '</div>';
+    html += c.bodyHtml ? c.bodyHtml : ('<div class="result-card-value">' + esc(c.value) + '</div>');
     html += '</div>';
   });
 
@@ -792,6 +799,46 @@ function esc(s) {
   const el = document.createElement('span');
   el.textContent = s;
   return el.innerHTML;
+}
+
+function ieSourceTag(src) {
+  src = (src || '').trim();
+  if (!src || src === 'none') return '';
+  const label = {cache:'cache', cnpja:'CNPJá', sintegra:'SintegraWS'}[src] || src;
+  return '<div class="ie-source">fonte: ' + esc(label) + '</div>';
+}
+
+/* On-demand IE fetch — the ONLY path that can spend a paid credit, and only
+   for the company's own UF. Cache hits return instantly with no external call. */
+async function fetchIe() {
+  const body = document.getElementById('ie-card-body');
+  if (!body || !companyData) return;
+  const cnpjDigits = (companyData.cnpj || '').replace(/\D/g, '');
+  const uf = companyData.uf || '';
+  const fmtIE = (raw) => (raw || '').replace(/\D/g, '').replace(/(\d)(?=(\d{3})+$)/g, '$1.');
+  body.innerHTML = '<div class="result-card-value">Consultando...</div>';
+  if (window.ted) ted.say('Buscando a Inscrição Estadual...', 'pointing_right');
+
+  const HOST = window.location.hostname;
+  const IS_LOCAL = HOST === 'localhost' || HOST === '127.0.0.1';
+  const base = IS_LOCAL ? '' : 'https://antgruwugsizmtcfjglo.supabase.co/functions/v1/debora';
+  const ieUrl = base + '/api/ie?cnpj=' + cnpjDigits + '&uf=' + encodeURIComponent(uf);
+
+  try {
+    const r = await fetch(ieUrl);
+    const dd = await r.json();
+    if (dd.inscricao_estadual) {
+      const situ = (dd.situacao_ie || '').trim();
+      const problem = situ && !/sem restri/i.test(situ) && !/ativa/i.test(situ);
+      body.innerHTML = '<div class="result-card-value">' + esc(fmtIE(dd.inscricao_estadual) + (problem ? ' (' + situ + ')' : '')) + '</div>' + ieSourceTag(dd._ie_source);
+      if (window.ted) ted.react('happy');
+    } else {
+      body.innerHTML = '<div class="result-card-value ie-unavailable">' + esc(dd._ie_unavailable_reason || 'IE indisponível') + '</div>' + ieSourceTag(dd._ie_source);
+    }
+  } catch (e) {
+    body.innerHTML = '<div class="result-card-value ie-unavailable">IE indisponível (erro de conexão)</div>' +
+      '<button class="ie-fetch-btn" onclick="fetchIe()">Tentar novamente</button>';
+  }
 }
 
 function enableSearch() {
