@@ -16,7 +16,7 @@ name: "codebridge — PR evidence gate"
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-    branches: [main]
+    branches: [gh-pages]
 
 jobs:
   evidence:

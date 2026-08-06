@@ -9,11 +9,11 @@
 # It does not revert the push — it makes it impossible for the push to be
 # quiet.
 
-name: "codebridge — 🚨 direct push to main"
+name: "codebridge — 🚨 direct push to gh-pages"
 
 on:
   push:
-    branches: [main]
+    branches: [gh-pages]
 
 jobs:
   check-direct-push:
@@ -43,12 +43,12 @@ jobs:
           fi
 
           echo ""
-          echo "🚨 ALARM: direct push to main detected."
+          echo "🚨 ALARM: direct push to gh-pages detected."
           echo ""
           echo "   Commit: $COMMIT_SHA"
           echo "   Pusher: ${{ github.actor }}"
           echo ""
           echo "   This commit was not produced by merging a pull request."
           echo "   The push is NOT reverted — the record simply shows it was irregular,"
-          echo "   and the owner receives an email."
+          echo "   and Bruno receives an email."
           exit 1

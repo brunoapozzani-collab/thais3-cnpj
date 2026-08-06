@@ -30,7 +30,7 @@ stack: "other"
 deploy_url: "none"
 
 # 4. Which branch deploys? Direct pushes to it are blocked; PRs are required.
-deploy_branch: "main"
+deploy_branch: "gh-pages"
 
 # 5. How is it verified? The one command that proves nothing is broken.
 #    Leave empty to inherit the default for `stack`.
